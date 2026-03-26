@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "itemglow",
+  "version": "${version}",
+  "name": "ItemGlow",
+  "description": "None",
+  "authors": [],
+  "contact": {},
+  "license": "GPL-3.0",
+  "icon": "assets/itemglow/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "fabric-datagen": [
+      "com.lirxowo.itemglow.client.ItemglowDataGenerator"
+    ],
+    "client": [
+      "com.lirxowo.itemglow.client.ItemglowClient"
+    ],
+    "main": [
+      "com.lirxowo.itemglow.Itemglow"
+    ]
+  },
+  "mixins": [
+    "itemglow.mixins.json",
+    {
+      "config": "itemglow.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}

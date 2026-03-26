@@ -1,0 +1,38 @@
+{
+  "vertex": "itemglow:held_item_outline",
+  "fragment": "itemglow:held_item_outline",
+  "samplers": [
+    { "name": "DiffuseSampler" },
+    { "name": "DepthSampler" }
+  ],
+  "attributes": [
+    "Position",
+    "UV0"
+  ],
+  "uniforms": [
+    {
+      "name": "ScreenSize",
+      "type": "float",
+      "count": 2,
+      "values": [ 1.0, 1.0 ]
+    },
+    {
+      "name": "GlowColor",
+      "type": "float",
+      "count": 4,
+      "values": [ 0.4, 0.95, 1.0, 1.0 ]
+    },
+    {
+      "name": "OutlineWidth",
+      "type": "float",
+      "count": 1,
+      "values": [ 2.1 ]
+    },
+    {
+      "name": "GlowStrength",
+      "type": "float",
+      "count": 1,
+      "values": [ 1.4 ]
+    }
+  ]
+}
