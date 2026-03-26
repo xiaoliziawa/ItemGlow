@@ -1,5 +1,7 @@
 package com.lirxowo.itemglow.client;
 
+import com.lirxowo.itemglow.client.config.AnimationEngine;
+import com.lirxowo.itemglow.client.config.ItemGlowConfig;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.systems.VertexSorter;
@@ -15,9 +17,9 @@ import net.minecraft.client.render.BufferRenderer;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.render.Tessellator;
+import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
-import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.EntityRenderDispatcher;
 import net.minecraft.client.render.item.HeldItemRenderer;
 import net.minecraft.client.render.model.json.ModelTransformationMode;
@@ -28,6 +30,8 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
+import net.minecraft.util.Arm;
+import net.minecraft.util.math.ColorHelper;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
@@ -35,18 +39,19 @@ import org.joml.Matrix4fStack;
 import org.joml.Quaternionf;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
-import static org.lwjgl.opengl.GL30.*;
+import static org.lwjgl.opengl.GL30.GL_DEPTH_BUFFER_BIT;
+import static org.lwjgl.opengl.GL30.GL_DRAW_FRAMEBUFFER;
+import static org.lwjgl.opengl.GL30.GL_NEAREST;
+import static org.lwjgl.opengl.GL30.GL_READ_FRAMEBUFFER;
+import static org.lwjgl.opengl.GL30.glClear;
 
 public final class HeldItemOutlineRenderer {
-    private static final float GLOW_RED = 0.4F;
-    private static final float GLOW_GREEN = 0.95F;
-    private static final float GLOW_BLUE = 1.0F;
-    private static final float GLOW_ALPHA = 1.0F;
-    private static final float OUTLINE_WIDTH = 2.1F;
-    private static final float GLOW_STRENGTH = 1.4F;
     private static final int HOTBAR_SIZE = 9;
+    private static final OutlineStyle GLOBAL_STYLE = new OutlineStyle(true, 0);
 
     private static SimpleFramebuffer maskTarget;
 
@@ -94,19 +99,6 @@ public final class HeldItemOutlineRenderer {
         maskTarget.beginWrite(true);
     }
 
-    private static void pushModelView(Matrix4f matrix) {
-        Matrix4fStack stack = RenderSystem.getModelViewStack();
-        stack.pushMatrix();
-        stack.identity();
-        stack.mul(matrix);
-        RenderSystem.applyModelViewMatrix();
-    }
-
-    private static void popModelView() {
-        RenderSystem.getModelViewStack().popMatrix();
-        RenderSystem.applyModelViewMatrix();
-    }
-
     private static void copyDepthFromMain() {
         Framebuffer main = MinecraftClient.getInstance().getFramebuffer();
         if (main == null || maskTarget == null) {
@@ -123,12 +115,13 @@ public final class HeldItemOutlineRenderer {
         maskTarget.beginWrite(false);
     }
 
-    private static void composite() {
+    private static void composite(OutlineStyle style) {
         ShaderProgram shader = OutlineShaderRegistry.getShader();
         if (shader == null || maskTarget == null) {
             return;
         }
 
+        ItemGlowConfig config = ItemGlowConfig.INSTANCE;
         MinecraftClient client = MinecraftClient.getInstance();
         Framebuffer mainTarget = client.getFramebuffer();
 
@@ -145,17 +138,24 @@ public final class HeldItemOutlineRenderer {
         if (screenSize != null) {
             screenSize.set((float) mainTarget.textureWidth, (float) mainTarget.textureHeight);
         }
+
+        float[] baseColor = unpackColor(style.color);
+        float[] color = style.useGlobalColor
+                ? AnimationEngine.getColor(config)
+                : AnimationEngine.getColorForBase(config, baseColor[0], baseColor[1], baseColor[2], baseColor[3]);
         GlUniform glowColor = shader.getUniform("GlowColor");
         if (glowColor != null) {
-            glowColor.set(GLOW_RED, GLOW_GREEN, GLOW_BLUE, GLOW_ALPHA);
+            glowColor.set(color[0], color[1], color[2], color[3]);
         }
+
         GlUniform outlineWidth = shader.getUniform("OutlineWidth");
         if (outlineWidth != null) {
-            outlineWidth.set(OUTLINE_WIDTH);
+            outlineWidth.set(AnimationEngine.getOutlineWidth(config));
         }
+
         GlUniform glowStrength = shader.getUniform("GlowStrength");
         if (glowStrength != null) {
-            glowStrength.set(GLOW_STRENGTH);
+            glowStrength.set(AnimationEngine.getGlowStrength(config));
         }
 
         drawFullscreenQuad(shader);
@@ -163,6 +163,15 @@ public final class HeldItemOutlineRenderer {
         RenderSystem.disableBlend();
         RenderSystem.enableDepthTest();
         RenderSystem.depthMask(true);
+    }
+
+    private static float[] unpackColor(int color) {
+        return new float[] {
+                ColorHelper.Argb.getRed(color) / 255.0F,
+                ColorHelper.Argb.getGreen(color) / 255.0F,
+                ColorHelper.Argb.getBlue(color) / 255.0F,
+                ColorHelper.Argb.getAlpha(color) / 255.0F
+        };
     }
 
     private static void drawFullscreenQuad(ShaderProgram shader) {
@@ -225,7 +234,14 @@ public final class HeldItemOutlineRenderer {
         copiedMatrices.peek().getNormalMatrix().set(matrices.peek().getNormalMatrix());
 
         CapturedItemRender captured = new CapturedItemRender(
-                entity, stack, renderMode, leftHanded, copiedMatrices, light, heldItemRenderer
+                entity,
+                stack,
+                renderMode,
+                leftHanded,
+                copiedMatrices,
+                light,
+                heldItemRenderer,
+                resolveOutlineStyle(stack)
         );
 
         if (renderMode.isFirstPerson()) {
@@ -251,7 +267,7 @@ public final class HeldItemOutlineRenderer {
             capturedWorldModelView = new Matrix4f(RenderSystem.getModelViewStack());
         }
 
-        CAPTURED_ITEM_ENTITIES.add(new CapturedItemEntity(entity, light));
+        CAPTURED_ITEM_ENTITIES.add(new CapturedItemEntity(entity, light, resolveOutlineStyle(entity.getStack())));
     }
 
     public static void renderAfterHand(float tickDelta, Matrix4f positionMatrix) {
@@ -261,14 +277,22 @@ public final class HeldItemOutlineRenderer {
         if (IrisCompat.isRenderingShadowPass()) {
             return;
         }
+        if (!ItemGlowConfig.INSTANCE.enabled || !ItemGlowConfig.INSTANCE.heldItemOutline) {
+            CAPTURED_RENDERS.clear();
+            return;
+        }
 
         MinecraftClient client = MinecraftClient.getInstance();
         VertexConsumerProvider.Immediate entityVertexConsumers = client.getBufferBuilders().getEntityVertexConsumers();
+        Map<OutlineStyle, List<CapturedItemRender>> groupedRenders = groupCapturedRenders(CAPTURED_RENDERS);
+        if (groupedRenders.isEmpty()) {
+            CAPTURED_RENDERS.clear();
+            return;
+        }
 
         entityVertexConsumers.draw();
 
         Matrix4f savedProjection = new Matrix4f(RenderSystem.getProjectionMatrix());
-
         if (capturedHandProjection != null) {
             RenderSystem.setProjectionMatrix(capturedHandProjection, VertexSorter.BY_DISTANCE);
         }
@@ -284,21 +308,20 @@ public final class HeldItemOutlineRenderer {
         RenderSystem.applyModelViewMatrix();
 
         renderingMask = true;
-        beginMaskPass();
-
-        for (CapturedItemRender render : CAPTURED_RENDERS) {
-            renderCapturedItem(render, entityVertexConsumers);
+        for (Map.Entry<OutlineStyle, List<CapturedItemRender>> entry : groupedRenders.entrySet()) {
+            beginMaskPass();
+            for (CapturedItemRender render : entry.getValue()) {
+                renderCapturedItem(render, entityVertexConsumers);
+            }
+            entityVertexConsumers.draw();
+            composite(entry.getKey());
         }
-
-        entityVertexConsumers.draw();
         renderingMask = false;
 
         stack.popMatrix();
         RenderSystem.applyModelViewMatrix();
-
         RenderSystem.setProjectionMatrix(savedProjection, VertexSorter.BY_DISTANCE);
 
-        composite();
         CAPTURED_RENDERS.clear();
         capturedHandProjection = null;
         capturedHandModelView = null;
@@ -311,74 +334,84 @@ public final class HeldItemOutlineRenderer {
         if (IrisCompat.isRenderingShadowPass()) {
             return;
         }
+        if (!ItemGlowConfig.INSTANCE.enabled || !ItemGlowConfig.INSTANCE.worldItemOutline) {
+            CAPTURED_WORLD_ITEM_RENDERS.clear();
+            CAPTURED_ITEM_ENTITIES.clear();
+            return;
+        }
 
         MinecraftClient client = MinecraftClient.getInstance();
         VertexConsumerProvider.Immediate entityVertexConsumers = client.getBufferBuilders().getEntityVertexConsumers();
-
-        renderingMask = true;
+        Map<OutlineStyle, WorldOutlineBatch> batches = groupWorldBatches();
+        if (batches.isEmpty()) {
+            CAPTURED_WORLD_ITEM_RENDERS.clear();
+            CAPTURED_ITEM_ENTITIES.clear();
+            return;
+        }
 
         Matrix4f savedProjection = new Matrix4f(RenderSystem.getProjectionMatrix());
-
         if (capturedWorldProjection != null) {
             RenderSystem.setProjectionMatrix(capturedWorldProjection, VertexSorter.BY_DISTANCE);
         }
 
-        Matrix4fStack mvStack = RenderSystem.getModelViewStack();
-        mvStack.pushMatrix();
+        Matrix4fStack modelViewStack = RenderSystem.getModelViewStack();
+        modelViewStack.pushMatrix();
         if (capturedWorldModelView != null) {
-            mvStack.set(capturedWorldModelView);
+            modelViewStack.set(capturedWorldModelView);
         } else {
-            mvStack.identity();
-            mvStack.mul(new Matrix4f().rotation(camera.getRotation().conjugate(new Quaternionf())));
+            modelViewStack.identity();
+            modelViewStack.mul(new Matrix4f().rotation(camera.getRotation().conjugate(new Quaternionf())));
         }
         RenderSystem.applyModelViewMatrix();
 
-        beginMaskPass();
-        copyDepthFromMain();
+        renderingMask = true;
+        for (Map.Entry<OutlineStyle, WorldOutlineBatch> entry : batches.entrySet()) {
+            WorldOutlineBatch batch = entry.getValue();
+            beginMaskPass();
+            copyDepthFromMain();
 
-        for (CapturedItemRender render : CAPTURED_WORLD_ITEM_RENDERS) {
-            renderCapturedItem(render, entityVertexConsumers);
-        }
+            for (CapturedItemRender render : batch.itemRenders) {
+                renderCapturedItem(render, entityVertexConsumers);
+            }
 
-        if (!CAPTURED_ITEM_ENTITIES.isEmpty()) {
-            EntityRenderDispatcher dispatcher = client.getEntityRenderDispatcher();
-            Vec3d cameraPos = camera.getPos();
-            MatrixStack matrices = new MatrixStack();
+            if (!batch.itemEntities.isEmpty()) {
+                EntityRenderDispatcher dispatcher = client.getEntityRenderDispatcher();
+                Vec3d cameraPos = camera.getPos();
+                MatrixStack matrices = new MatrixStack();
 
-            for (CapturedItemEntity captured : CAPTURED_ITEM_ENTITIES) {
-                if (captured.entity.isTouchingWater()) {
-                    continue;
+                for (CapturedItemEntity captured : batch.itemEntities) {
+                    if (captured.entity.isTouchingWater()) {
+                        continue;
+                    }
+                    renderItemEntity(dispatcher, captured, tickDelta, cameraPos, matrices, entityVertexConsumers);
                 }
-                renderItemEntity(dispatcher, captured, tickDelta, cameraPos, matrices, entityVertexConsumers);
+
+                entityVertexConsumers.draw();
+
+                glClear(GL_DEPTH_BUFFER_BIT);
+                for (CapturedItemEntity captured : batch.itemEntities) {
+                    if (!captured.entity.isTouchingWater()) {
+                        continue;
+                    }
+                    renderItemEntity(dispatcher, captured, tickDelta, cameraPos, matrices, entityVertexConsumers);
+                }
             }
 
             entityVertexConsumers.draw();
-
-            glClear(GL_DEPTH_BUFFER_BIT);
-            for (CapturedItemEntity captured : CAPTURED_ITEM_ENTITIES) {
-                if (!captured.entity.isTouchingWater()) {
-                    continue;
-                }
-                renderItemEntity(dispatcher, captured, tickDelta, cameraPos, matrices, entityVertexConsumers);
-            }
+            composite(entry.getKey());
         }
-
-        entityVertexConsumers.draw();
-
-        mvStack.popMatrix();
-        RenderSystem.applyModelViewMatrix();
-
         renderingMask = false;
 
+        modelViewStack.popMatrix();
+        RenderSystem.applyModelViewMatrix();
         RenderSystem.setProjectionMatrix(savedProjection, VertexSorter.BY_DISTANCE);
 
-        composite();
         CAPTURED_WORLD_ITEM_RENDERS.clear();
         CAPTURED_ITEM_ENTITIES.clear();
     }
 
     private static void renderHotbarOutline(DrawContext drawContext, RenderTickCounter tickCounter) {
-        if (!isReady()) {
+        if (!isReady() || !ItemGlowConfig.INSTANCE.enabled || !ItemGlowConfig.INSTANCE.hotbarOutline) {
             return;
         }
 
@@ -387,25 +420,7 @@ public final class HeldItemOutlineRenderer {
             return;
         }
 
-        ItemStack offhandStack = client.player.getOffHandStack();
-        boolean foundOutlinedItem = shouldOutline(offhandStack);
-        if (!foundOutlinedItem) {
-            for (int slot = 0; slot < HOTBAR_SIZE; slot++) {
-                if (shouldOutline(client.player.getInventory().getStack(slot))) {
-                    foundOutlinedItem = true;
-                    break;
-                }
-            }
-        }
-
-        if (!foundOutlinedItem) {
-            return;
-        }
-
-        beginMaskPass();
-
-        VertexConsumerProvider.Immediate hotbarVertexConsumers = client.getBufferBuilders().getEntityVertexConsumers();
-        DrawContext maskContext = new DrawContext(client, hotbarVertexConsumers);
+        List<GuiItemRender> guiItems = new ArrayList<>();
         int screenWidth = drawContext.getScaledWindowWidth();
         int screenHeight = drawContext.getScaledWindowHeight();
         int hotbarLeft = (screenWidth - 182) / 2;
@@ -416,25 +431,25 @@ public final class HeldItemOutlineRenderer {
             if (!shouldOutline(stack)) {
                 continue;
             }
-
-            int iconX = hotbarLeft + slot * 20 + 3;
-            int iconY = hotbarTop + 3;
-            maskContext.drawItemWithoutEntity(stack, iconX, iconY);
+            guiItems.add(new GuiItemRender(stack, hotbarLeft + slot * 20 + 3, hotbarTop + 3, resolveOutlineStyle(stack)));
         }
 
+        ItemStack offhandStack = client.player.getOffHandStack();
         if (shouldOutline(offhandStack)) {
-            boolean offhandOnLeft = client.player.getMainArm().getOpposite() == net.minecraft.util.Arm.LEFT;
-            int offhandX = offhandOnLeft ? hotbarLeft - 26 : hotbarLeft + 182 + 10;
-            int offhandY = hotbarTop + 3;
-            maskContext.drawItemWithoutEntity(offhandStack, offhandX, offhandY);
+            boolean offhandOnLeft = client.player.getMainArm().getOpposite() == Arm.LEFT;
+            int offhandX = offhandOnLeft ? hotbarLeft - 26 : hotbarLeft + 192;
+            guiItems.add(new GuiItemRender(offhandStack, offhandX, hotbarTop + 3, resolveOutlineStyle(offhandStack)));
         }
 
-        maskContext.draw();
-        composite();
+        if (guiItems.isEmpty()) {
+            return;
+        }
+
+        renderGuiGroups(guiItems);
     }
 
     public static void renderInventoryOutline(DrawContext drawContext, ScreenHandler handler, int guiX, int guiY, float delta) {
-        if (!isReady()) {
+        if (!isReady() || !ItemGlowConfig.INSTANCE.enabled || !ItemGlowConfig.INSTANCE.inventoryOutline) {
             return;
         }
 
@@ -443,41 +458,47 @@ public final class HeldItemOutlineRenderer {
             return;
         }
 
-        boolean foundOutlinedItem = false;
-        for (Slot slot : handler.slots) {
-            if (shouldOutline(slot.getStack())) {
-                foundOutlinedItem = true;
-                break;
-            }
-        }
-
-        if (!foundOutlinedItem) {
-            return;
-        }
-
-        beginMaskPass();
-
-        VertexConsumerProvider.Immediate consumers = client.getBufferBuilders().getEntityVertexConsumers();
-        DrawContext maskContext = new DrawContext(client, consumers);
-
+        List<GuiItemRender> guiItems = new ArrayList<>();
         for (Slot slot : handler.slots) {
             ItemStack stack = slot.getStack();
             if (!shouldOutline(stack)) {
                 continue;
             }
-
-            int iconX = guiX + slot.x;
-            int iconY = guiY + slot.y;
-            maskContext.drawItemWithoutEntity(stack, iconX, iconY);
+            guiItems.add(new GuiItemRender(stack, guiX + slot.x, guiY + slot.y, resolveOutlineStyle(stack)));
         }
 
-        maskContext.draw();
-        composite();
+        if (guiItems.isEmpty()) {
+            return;
+        }
+
+        renderGuiGroups(guiItems);
+    }
+
+    private static void renderGuiGroups(List<GuiItemRender> guiItems) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        Map<OutlineStyle, List<GuiItemRender>> grouped = new LinkedHashMap<>();
+        for (GuiItemRender render : guiItems) {
+            grouped.computeIfAbsent(render.style, key -> new ArrayList<>()).add(render);
+        }
+
+        for (Map.Entry<OutlineStyle, List<GuiItemRender>> entry : grouped.entrySet()) {
+            beginMaskPass();
+            VertexConsumerProvider.Immediate consumers = client.getBufferBuilders().getEntityVertexConsumers();
+            DrawContext maskContext = new DrawContext(client, consumers);
+            for (GuiItemRender render : entry.getValue()) {
+                maskContext.drawItemWithoutEntity(render.stack, render.x, render.y);
+            }
+            maskContext.draw();
+            composite(entry.getKey());
+        }
     }
 
     private static void renderItemEntity(
-            EntityRenderDispatcher dispatcher, CapturedItemEntity captured,
-            float tickDelta, Vec3d cameraPos, MatrixStack matrices,
+            EntityRenderDispatcher dispatcher,
+            CapturedItemEntity captured,
+            float tickDelta,
+            Vec3d cameraPos,
+            MatrixStack matrices,
             VertexConsumerProvider vertexConsumers
     ) {
         Entity entity = captured.entity;
@@ -486,9 +507,15 @@ public final class HeldItemOutlineRenderer {
         double dz = MathHelper.lerp(tickDelta, entity.lastRenderZ, entity.getZ()) - cameraPos.z;
 
         dispatcher.render(
-                entity, dx, dy, dz,
+                entity,
+                dx,
+                dy,
+                dz,
                 MathHelper.lerp(tickDelta, entity.prevYaw, entity.getYaw()),
-                tickDelta, matrices, vertexConsumers, captured.light
+                tickDelta,
+                matrices,
+                vertexConsumers,
+                captured.light
         );
     }
 
@@ -504,8 +531,40 @@ public final class HeldItemOutlineRenderer {
         );
     }
 
+    private static Map<OutlineStyle, List<CapturedItemRender>> groupCapturedRenders(List<CapturedItemRender> renders) {
+        Map<OutlineStyle, List<CapturedItemRender>> grouped = new LinkedHashMap<>();
+        for (CapturedItemRender render : renders) {
+            grouped.computeIfAbsent(render.style, key -> new ArrayList<>()).add(render);
+        }
+        return grouped;
+    }
+
+    private static Map<OutlineStyle, WorldOutlineBatch> groupWorldBatches() {
+        Map<OutlineStyle, WorldOutlineBatch> batches = new LinkedHashMap<>();
+
+        for (CapturedItemRender render : CAPTURED_WORLD_ITEM_RENDERS) {
+            batches.computeIfAbsent(render.style, key -> new WorldOutlineBatch()).itemRenders.add(render);
+        }
+        for (CapturedItemEntity entity : CAPTURED_ITEM_ENTITIES) {
+            batches.computeIfAbsent(entity.style, key -> new WorldOutlineBatch()).itemEntities.add(entity);
+        }
+
+        return batches;
+    }
+
+    private static OutlineStyle resolveOutlineStyle(ItemStack stack) {
+        ItemGlowConfig.ItemFilterRule rule = ItemGlowConfig.INSTANCE.findItemFilter(stack);
+        if (rule != null) {
+            return new OutlineStyle(false, rule.outlineColor);
+        }
+        return GLOBAL_STYLE;
+    }
+
     private static boolean shouldOutline(ItemStack stack) {
         return !stack.isEmpty();
+    }
+
+    private record OutlineStyle(boolean useGlobalColor, int color) {
     }
 
     private record CapturedItemRender(
@@ -515,13 +574,28 @@ public final class HeldItemOutlineRenderer {
             boolean leftHanded,
             MatrixStack matrices,
             int light,
-            HeldItemRenderer heldItemRenderer
+            HeldItemRenderer heldItemRenderer,
+            OutlineStyle style
     ) {
     }
 
     private record CapturedItemEntity(
             ItemEntity entity,
-            int light
+            int light,
+            OutlineStyle style
     ) {
+    }
+
+    private record GuiItemRender(
+            ItemStack stack,
+            int x,
+            int y,
+            OutlineStyle style
+    ) {
+    }
+
+    private static final class WorldOutlineBatch {
+        private final List<CapturedItemRender> itemRenders = new ArrayList<>();
+        private final List<CapturedItemEntity> itemEntities = new ArrayList<>();
     }
 }
