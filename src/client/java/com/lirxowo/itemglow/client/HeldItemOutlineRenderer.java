@@ -158,6 +158,27 @@ public final class HeldItemOutlineRenderer {
             glowStrength.set(AnimationEngine.getGlowStrength(config));
         }
 
+        GlUniform outlineMode = shader.getUniform("OutlineMode");
+        if (outlineMode != null) {
+            outlineMode.set(config.outlineStyle.ordinal());
+        }
+
+        GlUniform gradientEnabled = shader.getUniform("GradientEnabled");
+        if (gradientEnabled != null) {
+            gradientEnabled.set(config.gradientEnabled ? 1 : 0);
+        }
+
+        GlUniform glowColor2 = shader.getUniform("GlowColor2");
+        if (glowColor2 != null) {
+            if (config.gradientEnabled) {
+                float[] gc2 = unpackColor(config.gradientColor);
+                float[] animColor2 = AnimationEngine.getColorForBase(config, gc2[0], gc2[1], gc2[2], gc2[3]);
+                glowColor2.set(animColor2[0], animColor2[1], animColor2[2], animColor2[3]);
+            } else {
+                glowColor2.set(color[0], color[1], color[2], color[3]);
+            }
+        }
+
         drawFullscreenQuad(shader);
 
         RenderSystem.disableBlend();
@@ -401,6 +422,16 @@ public final class HeldItemOutlineRenderer {
             composite(entry.getKey());
         }
         renderingMask = false;
+
+        // Render item beams while world projection is still active
+        if (ItemGlowConfig.INSTANCE.itemBeam && !CAPTURED_ITEM_ENTITIES.isEmpty()) {
+            List<ItemEntity> beamEntities = new ArrayList<>();
+            for (CapturedItemEntity captured : CAPTURED_ITEM_ENTITIES) {
+                beamEntities.add(captured.entity);
+            }
+            MinecraftClient.getInstance().getFramebuffer().beginWrite(true);
+            ItemBeamRenderer.renderBeams(beamEntities, tickDelta, camera.getPos());
+        }
 
         modelViewStack.popMatrix();
         RenderSystem.applyModelViewMatrix();

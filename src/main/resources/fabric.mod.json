@@ -18,6 +18,9 @@
     ],
     "main": [
       "com.lirxowo.itemglow.Itemglow"
+    ],
+    "modmenu": [
+      "com.lirxowo.itemglow.client.ModMenuIntegration"
     ]
   },
   "mixins": [
@@ -31,5 +34,8 @@
     "fabricloader": ">=${loader_version}",
     "fabric-api": "*",
     "minecraft": "${minecraft_version}"
+  },
+  "suggests": {
+    "modmenu": "*"
   }
 }

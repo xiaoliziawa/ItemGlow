@@ -40,6 +40,14 @@ public class ItemGlowConfig {
     public AnimationMode animationMode = AnimationMode.NONE;
     public float animationSpeed = 1.0F;
 
+    public OutlineStyleMode outlineStyle = OutlineStyleMode.SOLID;
+    public boolean gradientEnabled = false;
+    public int gradientColor = 0xFFFF6699;
+
+    public boolean pickupParticles = true;
+    public boolean itemBeam = false;
+    public float beamHeight = 4.0F;
+
     public float getRed() {
         return ((outlineColor >> 16) & 0xFF) / 255.0F;
     }

@@ -54,5 +54,15 @@
   "itemglow.config.filters.pickItemHint": "Click an item icon to add or replace a rule. Use search to filter faster.",
   "itemglow.config.filters.searchPlaceholder": "Search by item name or item ID",
   "itemglow.config.filters.noMatches": "No matching items",
-  "itemglow.config.filters.clickToChange": "Click the item area to change the item"
+  "itemglow.config.filters.clickToChange": "Click the item area to change the item",
+  "itemglow.config.outlineStyle": "Outline Style",
+  "itemglow.outline_style.solid": "Solid",
+  "itemglow.outline_style.dashed": "Dashed",
+  "itemglow.outline_style.double": "Double",
+  "itemglow.outline_style.pixel": "Pixel",
+  "itemglow.config.gradientEnabled": "Gradient",
+  "itemglow.config.gradientColor": "Gradient Color",
+  "itemglow.config.pickupParticles": "Pickup Particles",
+  "itemglow.config.itemBeam": "Item Beam",
+  "itemglow.config.beamHeight": "Beam Height"
 }

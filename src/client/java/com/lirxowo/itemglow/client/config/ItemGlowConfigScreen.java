@@ -25,6 +25,7 @@ public class ItemGlowConfigScreen {
 
         ConfigEntryBuilder entryBuilder = builder.entryBuilder();
 
+        // General
         ConfigCategory general = builder.getOrCreateCategory(Text.translatable("itemglow.config.category.general"));
         general.addEntry(entryBuilder.startBooleanToggle(Text.translatable("itemglow.config.enabled"), config.enabled)
                 .setDefaultValue(defaults.enabled)
@@ -46,7 +47,12 @@ public class ItemGlowConfigScreen {
                 .setDefaultValue(defaults.inventoryOutline)
                 .setSaveConsumer(v -> config.inventoryOutline = v)
                 .build());
+        general.addEntry(entryBuilder.startBooleanToggle(Text.translatable("itemglow.config.pickupParticles"), config.pickupParticles)
+                .setDefaultValue(defaults.pickupParticles)
+                .setSaveConsumer(v -> config.pickupParticles = v)
+                .build());
 
+        // Appearance
         ConfigCategory appearance = builder.getOrCreateCategory(Text.translatable("itemglow.config.category.appearance"));
         appearance.addEntry(new ColorPickerEntry(
                 Text.translatable("itemglow.config.outlineColor"),
@@ -66,11 +72,41 @@ public class ItemGlowConfigScreen {
                 .setMax(3.0F)
                 .setSaveConsumer(v -> config.glowStrength = v)
                 .build());
+        appearance.addEntry(entryBuilder.startEnumSelector(
+                        Text.translatable("itemglow.config.outlineStyle"),
+                        OutlineStyleMode.class,
+                        config.outlineStyle)
+                .setDefaultValue(defaults.outlineStyle)
+                .setEnumNameProvider(mode -> Text.translatable(((OutlineStyleMode) mode).getTranslationKey()))
+                .setSaveConsumer(v -> config.outlineStyle = v)
+                .build());
+        appearance.addEntry(entryBuilder.startBooleanToggle(Text.translatable("itemglow.config.gradientEnabled"), config.gradientEnabled)
+                .setDefaultValue(defaults.gradientEnabled)
+                .setSaveConsumer(v -> config.gradientEnabled = v)
+                .build());
+        appearance.addEntry(new ColorPickerEntry(
+                Text.translatable("itemglow.config.gradientColor"),
+                config.gradientColor,
+                defaults.gradientColor,
+                v -> config.gradientColor = v
+        ));
+        appearance.addEntry(entryBuilder.startBooleanToggle(Text.translatable("itemglow.config.itemBeam"), config.itemBeam)
+                .setDefaultValue(defaults.itemBeam)
+                .setSaveConsumer(v -> config.itemBeam = v)
+                .build());
+        appearance.addEntry(entryBuilder.startFloatField(Text.translatable("itemglow.config.beamHeight"), config.beamHeight)
+                .setDefaultValue(defaults.beamHeight)
+                .setMin(1.0F)
+                .setMax(10.0F)
+                .setSaveConsumer(v -> config.beamHeight = v)
+                .build());
 
+        // Filters
         ConfigCategory filters = builder.getOrCreateCategory(Text.translatable("itemglow.config.category.filters"));
         filters.addEntry(entryBuilder.startTextDescription(Text.translatable("itemglow.config.filters.description")).build());
         filters.addEntry(new ItemFilterEntry(Text.translatable("itemglow.config.filters.title"), workingFilters));
 
+        // Animation
         ConfigCategory animation = builder.getOrCreateCategory(Text.translatable("itemglow.config.category.animation"));
         animation.addEntry(entryBuilder.startEnumSelector(
                         Text.translatable("itemglow.config.animationMode"),

@@ -54,5 +54,15 @@
   "itemglow.config.filters.pickItemHint": "点击物品图标添加或替换规则，使用搜索快速筛选。",
   "itemglow.config.filters.searchPlaceholder": "搜索物品名称或 ID",
   "itemglow.config.filters.noMatches": "没有匹配的物品",
-  "itemglow.config.filters.clickToChange": "点击图标区域更换物品"
+  "itemglow.config.filters.clickToChange": "点击图标区域更换物品",
+  "itemglow.config.outlineStyle": "边框样式",
+  "itemglow.outline_style.solid": "实线",
+  "itemglow.outline_style.dashed": "虚线",
+  "itemglow.outline_style.double": "双线",
+  "itemglow.outline_style.pixel": "像素",
+  "itemglow.config.gradientEnabled": "渐变色",
+  "itemglow.config.gradientColor": "渐变颜色",
+  "itemglow.config.pickupParticles": "拾取粒子特效",
+  "itemglow.config.itemBeam": "物品光柱",
+  "itemglow.config.beamHeight": "光柱高度"
 }

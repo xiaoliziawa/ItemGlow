@@ -39,6 +39,10 @@ repositories {
         name = "Shedaniel"
         url = "https://maven.shedaniel.me/"
     }
+    maven {
+        name = "TerraformersMC"
+        url = "https://maven.terraformersmc.com/"
+    }
 }
 
 dependencies {
@@ -51,6 +55,7 @@ dependencies {
         exclude(group: "net.fabricmc.fabric-api")
     }
     modLocalRuntime "maven.modrinth:modelfix:1.21-1.6"
+    modCompileOnly "com.terraformersmc:modmenu:11.0.2"
 }
 
 processResources {
