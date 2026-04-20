@@ -64,5 +64,12 @@
   "itemglow.config.gradientColor": "Gradient Color",
   "itemglow.config.pickupParticles": "Pickup Particles",
   "itemglow.config.itemBeam": "Item Beam",
-  "itemglow.config.beamHeight": "Beam Height"
+  "itemglow.config.beamHeight": "Beam Height",
+  "itemglow.config.beamWidth": "Beam Width",
+  "itemglow.config.beamAlpha": "Beam Opacity",
+  "itemglow.config.beamStyle": "Beam Style",
+  "itemglow.beam_style.straight": "Straight",
+  "itemglow.beam_style.tapered": "Tapered",
+  "itemglow.beam_style.twisted": "Twisted",
+  "itemglow.beam_style.pulse": "Pulse"
 }

@@ -100,6 +100,26 @@ public class ItemGlowConfigScreen {
                 .setMax(10.0F)
                 .setSaveConsumer(v -> config.beamHeight = v)
                 .build());
+        appearance.addEntry(entryBuilder.startFloatField(Text.translatable("itemglow.config.beamWidth"), config.beamWidth)
+                .setDefaultValue(defaults.beamWidth)
+                .setMin(0.02F)
+                .setMax(0.75F)
+                .setSaveConsumer(v -> config.beamWidth = v)
+                .build());
+        appearance.addEntry(entryBuilder.startFloatField(Text.translatable("itemglow.config.beamAlpha"), config.beamAlpha)
+                .setDefaultValue(defaults.beamAlpha)
+                .setMin(0.05F)
+                .setMax(1.0F)
+                .setSaveConsumer(v -> config.beamAlpha = v)
+                .build());
+        appearance.addEntry(entryBuilder.startEnumSelector(
+                        Text.translatable("itemglow.config.beamStyle"),
+                        BeamStyleMode.class,
+                        config.beamStyle)
+                .setDefaultValue(defaults.beamStyle)
+                .setEnumNameProvider(mode -> Text.translatable(((BeamStyleMode) mode).getTranslationKey()))
+                .setSaveConsumer(v -> config.beamStyle = v)
+                .build());
 
         // Filters
         ConfigCategory filters = builder.getOrCreateCategory(Text.translatable("itemglow.config.category.filters"));

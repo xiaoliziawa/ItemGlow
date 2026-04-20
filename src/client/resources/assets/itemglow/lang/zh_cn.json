@@ -64,5 +64,12 @@
   "itemglow.config.gradientColor": "渐变颜色",
   "itemglow.config.pickupParticles": "拾取粒子特效",
   "itemglow.config.itemBeam": "物品光柱",
-  "itemglow.config.beamHeight": "光柱高度"
+  "itemglow.config.beamHeight": "光柱高度",
+  "itemglow.config.beamWidth": "光柱粗细",
+  "itemglow.config.beamAlpha": "光柱透明度",
+  "itemglow.config.beamStyle": "光柱样式",
+  "itemglow.beam_style.straight": "直柱",
+  "itemglow.beam_style.tapered": "锥形",
+  "itemglow.beam_style.twisted": "螺旋",
+  "itemglow.beam_style.pulse": "脉冲"
 }

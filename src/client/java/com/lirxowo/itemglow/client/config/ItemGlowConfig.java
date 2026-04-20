@@ -6,6 +6,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.MathHelper;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -47,6 +48,9 @@ public class ItemGlowConfig {
     public boolean pickupParticles = true;
     public boolean itemBeam = false;
     public float beamHeight = 4.0F;
+    public float beamWidth = 0.12F;
+    public float beamAlpha = 0.45F;
+    public BeamStyleMode beamStyle = BeamStyleMode.STRAIGHT;
 
     public float getRed() {
         return ((outlineColor >> 16) & 0xFF) / 255.0F;
@@ -86,6 +90,16 @@ public class ItemGlowConfig {
     }
 
     public void normalize() {
+        outlineWidth = MathHelper.clamp(outlineWidth, 0.5F, 5.0F);
+        glowStrength = MathHelper.clamp(glowStrength, 0.0F, 3.0F);
+        animationSpeed = MathHelper.clamp(animationSpeed, 0.1F, 5.0F);
+        beamHeight = MathHelper.clamp(beamHeight, 1.0F, 10.0F);
+        beamWidth = MathHelper.clamp(beamWidth, 0.02F, 0.75F);
+        beamAlpha = MathHelper.clamp(beamAlpha, 0.05F, 1.0F);
+        animationMode = animationMode == null ? AnimationMode.NONE : animationMode;
+        outlineStyle = outlineStyle == null ? OutlineStyleMode.SOLID : outlineStyle;
+        beamStyle = beamStyle == null ? BeamStyleMode.STRAIGHT : beamStyle;
+
         Map<String, ItemFilterRule> normalized = new LinkedHashMap<>();
         for (ItemFilterRule rule : getItemFilters()) {
             if (rule == null) {
